@@ -150,6 +150,9 @@ static guint64 mount_poller_time = 0;
 
 #ifdef HAVE_MNTENT_H
 #include <mntent.h>
+#ifdef HAVE_LIBMOUNT
+//TODO
+#endif // HAVE_LIBMOUNT
 #elif defined (HAVE_SYS_MNTTAB_H)
 #include <sys/mnttab.h>
 #endif
@@ -326,22 +329,19 @@ guess_system_internal (const char *mountpoint,
 /* mntent.h (Linux, GNU, NSS) {{{2 */
 #ifdef HAVE_MNTENT_H
 
-static char *
-get_mtab_read_file (void)
+#ifdef HAVE_LIBMOUNT
+
+static GList *
+_g_get_unix_mounts (void)
 {
-#ifdef _PATH_MOUNTED
-# ifdef __linux__
-  return "/proc/mounts";
-# else
-  return _PATH_MOUNTED;
-# endif
-#else
-  return "/etc/mtab";
-#endif
+  //TODO
+  return NULL;
 }
 
+#else
+
 static char *
-get_mtab_monitor_file (void)
+get_mtab_read_file (void)
 {
 #ifdef _PATH_MOUNTED
 # ifdef __linux__
@@ -437,6 +437,22 @@ _g_get_unix_mounts (void)
 #endif
   
   return g_list_reverse (return_list);
+}
+
+#endif // HAVE_LIBMOUNT
+
+static char *
+get_mtab_monitor_file (void)
+{
+#ifdef _PATH_MOUNTED
+# ifdef __linux__
+  return "/proc/mounts";
+# else
+  return _PATH_MOUNTED;
+# endif
+#else
+  return "/etc/mtab";
+#endif
 }
 
 /* mnttab.h {{{2 */
@@ -728,6 +744,9 @@ _g_get_unix_mounts (void)
 static char *
 get_fstab_file (void)
 {
+#ifdef HAVE_LIBMOUNT
+// TODO
+#else
 #if defined(HAVE_SYS_MNTCTL_H) && defined(HAVE_SYS_VMOUNT_H) && defined(HAVE_SYS_VFS_H)
   /* AIX */
   return "/etc/filesystems";
@@ -738,10 +757,23 @@ get_fstab_file (void)
 #else
   return "/etc/fstab";
 #endif
+#endif // HAVE_LIBMOUNT
 }
 
 /* mntent.h (Linux, GNU, NSS) {{{2 */
 #ifdef HAVE_MNTENT_H
+
+#ifdef HAVE_LIBMOUNT
+
+static GList *
+_g_get_unix_mount_points (void)
+{
+  //TODO
+  return NULL;
+}
+
+#else
+
 static GList *
 _g_get_unix_mount_points (void)
 {
@@ -821,6 +853,8 @@ _g_get_unix_mount_points (void)
   
   return g_list_reverse (return_list);
 }
+
+#endif // HAVE_LIBMOUNT
 
 /* mnttab.h {{{2 */
 #elif defined (HAVE_SYS_MNTTAB_H)
