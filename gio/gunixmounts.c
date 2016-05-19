@@ -334,8 +334,63 @@ guess_system_internal (const char *mountpoint,
 static GList *
 _g_get_unix_mounts (void)
 {
-  //TODO
-  return NULL;
+  struct libmnt_table *table = NULL;
+  struct libmnt_context *ctxt = NULL;
+  struct libmnt_iter* iter = NULL;
+  struct libmnt_fs *fs = NULL;
+  GUnixMountEntry *mount_entry = NULL;
+  GList *return_list = NULL;
+
+  ctxt = mnt_new_context ();
+  mnt_context_get_table (ctxt, "/proc/self/mountinfo", &table);
+  if (!table)
+    mnt_context_get_mtab (ctxt, &table);
+
+  /* Not much to do if neither mountinfo nor mtab are available */
+  if (!table)
+    return NULL;
+
+  iter = mnt_new_iter (MNT_ITER_FORWARD);
+  while (mnt_table_next_fs (table, iter, &fs) == 0)
+    {
+      const char *fs_source = NULL;
+      const char *fs_target = NULL;
+      char *mount_options = NULL;
+      unsigned long mount_flags = 0;
+
+      if (!mnt_table_is_fs_mounted (table, fs))
+        continue;
+
+      fs_source = mnt_fs_get_source(fs);
+      fs_target = mnt_fs_get_target(fs);
+
+      mount_entry = g_new0 (GUnixMountEntry, 1);
+      mount_entry->mount_path = g_strdup (fs_target);
+
+      if (g_strcmp0 (fs_source, "/dev/root") == 0)
+        mount_entry->device_path = g_strdup (_resolve_dev_root ());
+      else
+        mount_entry->device_path = g_strdup (fs_source);
+      mount_entry->filesystem_type = g_strdup (mnt_fs_get_fstype (fs));
+
+      mount_options = mnt_fs_strdup_options(fs);
+      if (mount_options)
+        {
+          mnt_optstr_get_flags (mount_options, &mount_flags, mnt_get_builtin_optmap(MNT_LINUX_MAP));
+          g_free (mount_options);
+        }
+      mount_entry->is_read_only = (mount_flags & MS_RDONLY) ? 1 : 0;
+
+      mount_entry->is_system_internal =
+        guess_system_internal (mount_entry->mount_path,
+                               mount_entry->filesystem_type,
+                               mount_entry->device_path);
+
+      return_list = g_list_prepend (return_list, mount_entry);
+    }
+  mnt_free_context(ctxt);
+
+  return g_list_reverse (return_list);
 }
 
 #else
